@@ -4,8 +4,8 @@ import json
 import os
 import re
 
-TOKEN = "8594048221:AAFYSCHGT1GDPydisGWvzj5Z4jSQeKUs06c"
-GROUP_ID = -1003875819316
+TOKEN = "8594048221:AAHn7NrzzTv3YsyX9g7xDubxPYPCjA9LF5E"
+GROUP_ID = -1003685695007
 ADMIN_ID = 1794307964
 CARD = "9860600409265755"
 
@@ -166,7 +166,7 @@ def process_order(message):
     if data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой?")
+        bot.send_message(uid, "👥 Нечта жой оласиз?")
         return
 
     if data["step"] == "seat":
