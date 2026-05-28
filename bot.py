@@ -12,30 +12,34 @@ BOT_LINK = "https://t.me/SAMARAQAND_QARSHI_BOT"
 bot = telebot.TeleBot(TOKEN)
 
 BALANCE_FILE = "balances.json"
+DRIVERS_FILE = "drivers.json"
 
 
-def load_balances():
-    if os.path.exists(BALANCE_FILE):
-        with open(BALANCE_FILE, "r", encoding="utf-8") as f:
+# ================= LOAD/SAVE =================
+def load_json(file):
+    if os.path.exists(file):
+        with open(file, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
+def save_json(file, data):
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(data, f)
 
-def save_balances():
-    with open(BALANCE_FILE, "w", encoding="utf-8") as f:
-        json.dump(user_balance, f)
+user_balance = load_json(BALANCE_FILE)
+drivers = load_json(DRIVERS_FILE)
 
-
-user_balance = load_balances()
 orders = {}
 step_data = {}
 payment_wait = {}
+register_step = {}
 
 
 # ================= MENU =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("🚕 Заказ бериш", "💰 Хайдовчи Баланси")
+    kb.add("🚕 Заказ бериш")
+    kb.add("🚖 Хайдовчи бўлиш", "💰 Хайдовчи Баланси")
     return kb
 
 
@@ -46,15 +50,49 @@ def start(message):
 
     if uid not in user_balance:
         user_balance[uid] = 0
-        save_balances()
+        save_json(BALANCE_FILE, user_balance)
 
-    step_data.pop(message.chat.id, None)
+    bot.send_message(message.chat.id, "Ассалому алайкум 👋", reply_markup=menu())
 
-    bot.send_message(
-        message.chat.id,
-        "Ассалому алайкум 👋",
-        reply_markup=menu()
-    )
+
+# ================= DRIVER REGISTER =================
+@bot.message_handler(func=lambda m: m.text == "🚖 Хайдовчи бўлиш")
+def become_driver(message):
+    uid = str(message.chat.id)
+
+    if uid in drivers:
+        bot.send_message(message.chat.id, "✅ Сиз аллақачон рўйхатдан ўтгансиз")
+        return
+
+    register_step[message.chat.id] = "name"
+    bot.send_message(message.chat.id, "👤 Исмингизни киритинг")
+
+
+@bot.message_handler(func=lambda m: m.chat.id in register_step)
+def register_driver(message):
+    uid = str(message.chat.id)
+
+    if register_step[message.chat.id] == "name":
+        drivers[uid] = {"name": message.text}
+        register_step[message.chat.id] = "phone"
+        bot.send_message(message.chat.id, "📞 Телефон рақамингизни киритинг")
+
+    elif register_step[message.chat.id] == "phone":
+        drivers[uid]["phone"] = message.text
+        register_step[message.chat.id] = "car"
+        bot.send_message(message.chat.id, "🚘 Машина русумини киритинг")
+
+    elif register_step[message.chat.id] == "car":
+        drivers[uid]["car"] = message.text
+        save_json(DRIVERS_FILE, drivers)
+
+        del register_step[message.chat.id]
+
+        bot.send_message(
+            message.chat.id,
+            "✅ Сиз хайдовчи сифатида рўйхатдан ўтдингиз",
+            reply_markup=menu()
+        )
 
 
 # ================= BALANCE =================
@@ -64,10 +102,7 @@ def balance(message):
     bal = user_balance.get(uid, 0)
 
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(
-        "💳 Баланс тўлдириш",
-        callback_data="send_check"
-    ))
+    kb.add(types.InlineKeyboardButton("💳 Баланс тўлдириш", callback_data="send_check"))
 
     bot.send_message(
         message.chat.id,
@@ -92,12 +127,7 @@ def receive_check(message):
         return
 
     bot.forward_message(ADMIN_ID, uid, message.message_id)
-
-    bot.send_message(
-        ADMIN_ID,
-        f"💳 Янги тўлов\n/pay {uid} 5000"
-    )
-
+    bot.send_message(ADMIN_ID, f"💳 Янги тўлов\n/pay {uid} 5000")
     bot.send_message(uid, "✅ Чек админга юборилди")
 
     del payment_wait[uid]
@@ -124,7 +154,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой банд қиласиз?")
+        bot.send_message(uid, "👥 Нечта жой?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -135,17 +165,10 @@ def process_order(message):
         data["phone"] = message.text
 
         order_id = len(orders) + 1
-
-        orders[order_id] = {
-            "customer_id": uid,
-            **data.copy()
-        }
+        orders[order_id] = {"customer_id": uid, **data.copy()}
 
         kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(
-            "✅ Қабул қилиш",
-            callback_data=f"accept_{order_id}"
-        ))
+        kb.add(types.InlineKeyboardButton("✅ Қабул қилиш", callback_data=f"accept_{order_id}"))
 
         txt = (
             f"🚕 Янги заказ\n\n"
@@ -166,59 +189,36 @@ def accept_order(call):
     order_id = int(call.data.split("_")[1])
 
     if order_id not in orders:
-        bot.answer_callback_query(call.id, "Бу эски заказ")
         return
 
     uid = str(call.from_user.id)
 
-    if uid not in user_balance:
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(
-            "🔗 Ботга кириш",
-            url=BOT_LINK
-        ))
-
-        bot.send_message(
-            call.message.chat.id,
-            "⚠️ Аввал ботга кириб /start босинг",
-            reply_markup=kb
-        )
+    if uid not in drivers:
+        bot.send_message(call.from_user.id, "❌ Аввал хайдовчи бўлиб рўйхатдан ўтинг")
         return
 
-    if user_balance[uid] < 5000:
-        bot.send_message(
-            call.from_user.id,
-            f"❌ Баланс етарли эмас\n\n"
-            f"Ҳар бир заказ: 5000 сўм\n\n"
-            f"💳 Карта:\n{CARD}"
-        )
+    if user_balance.get(uid, 0) < 5000:
+        bot.send_message(call.from_user.id, "❌ Баланс етарли эмас")
         return
 
     user_balance[uid] -= 5000
-    save_balances()
+    save_json(BALANCE_FILE, user_balance)
 
     data = orders[order_id]
     customer_id = data["customer_id"]
 
     bot.edit_message_text(
-        f"✅ @{call.from_user.username or call.from_user.first_name} заказни қабул қилди",
+        f"✅ {drivers[uid]['name']} заказни қабул қилди",
         call.message.chat.id,
         call.message.message_id
     )
 
     bot.send_message(
-        call.from_user.id,
-        f"✅ Заказ қабул қилинди\n\n"
-        f"📞 {data['phone']}\n"
-        f"📍 Қаердан: {data['from']}\n"
-        f"📍 Қаерга: {data['to']}\n"
-        f"👥 Жой: {data['seat']}\n\n"
-        f"💰 Қолдиқ: {user_balance[uid]} сўм"
-    )
-
-    bot.send_message(
         customer_id,
-        f"✅ Заказингизни {call.from_user.first_name} қабул қилди.\n\n🚕 Ҳайдовчи йўлга чиқди."
+        f"✅ Заказ қабул қилинди\n\n"
+        f"👤 Ҳайдовчи: {drivers[uid]['name']}\n"
+        f"📞 {drivers[uid]['phone']}\n"
+        f"🚘 Машина: {drivers[uid]['car']}"
     )
 
     del orders[order_id]
@@ -232,21 +232,15 @@ def pay(message):
 
     try:
         _, uid, amount = message.text.split()
-        amount = int(amount)
 
-        user_balance[uid] = user_balance.get(uid, 0) + amount
-        save_balances()
+        user_balance[uid] = user_balance.get(uid, 0) + int(amount)
+        save_json(BALANCE_FILE, user_balance)
 
-        bot.send_message(
-            int(uid),
-            f"✅ Баланс {amount} сўмга тўлдирилди\n"
-            f"💰 Янги баланс: {user_balance[uid]} сўм"
-        )
-
+        bot.send_message(int(uid), f"✅ Баланс {amount} сўмга тўлдирилди")
         bot.reply_to(message, "✅ Тасдиқланди")
 
     except:
-        bot.reply_to(message, "❌ Формат:\n/pay user_id amount")
+        bot.reply_to(message, "❌ Формат: /pay user_id amount")
 
 
 print("Bot ishga tushdi...")
