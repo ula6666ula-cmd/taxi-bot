@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 
-TOKEN = ""
+TOKEN = "8594048221:AAH347Vcdh0haLmEs48yYWwVCIpftfr9JZo"
 GROUP_ID = -1003875819316
 ADMIN_ID = 1794307964
 CARD = "9860600409265755"
