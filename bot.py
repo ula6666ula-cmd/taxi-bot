@@ -1,5 +1,7 @@
 import telebot
 from telebot import types
+import json
+import os
 
 TOKEN = "8594048221:AAH347Vcdh0haLmEs48yYWwVCIpftfr9JZo"
 GROUP_ID = -1003875819316
@@ -9,7 +11,22 @@ BOT_LINK = "https://t.me/SAMARAQAND_QARSHI_BOT"
 
 bot = telebot.TeleBot(TOKEN)
 
-user_balance = {}
+BALANCE_FILE = "balances.json"
+
+
+def load_balances():
+    if os.path.exists(BALANCE_FILE):
+        with open(BALANCE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_balances():
+    with open(BALANCE_FILE, "w", encoding="utf-8") as f:
+        json.dump(user_balance, f)
+
+
+user_balance = load_balances()
 orders = {}
 step_data = {}
 payment_wait = {}
@@ -25,8 +42,11 @@ def menu():
 # ================= START =================
 @bot.message_handler(commands=['start'])
 def start(message):
-    if message.chat.id not in user_balance:
-        user_balance[message.chat.id] = 0
+    uid = str(message.chat.id)
+
+    if uid not in user_balance:
+        user_balance[uid] = 0
+        save_balances()
 
     step_data.pop(message.chat.id, None)
 
@@ -40,7 +60,8 @@ def start(message):
 # ================= BALANCE =================
 @bot.message_handler(func=lambda m: m.text == "💰 Хайдовчи Баланси")
 def balance(message):
-    bal = user_balance.get(message.chat.id, 0)
+    uid = str(message.chat.id)
+    bal = user_balance.get(uid, 0)
 
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(
@@ -148,7 +169,7 @@ def accept_order(call):
         bot.answer_callback_query(call.id, "Бу эски заказ")
         return
 
-    uid = call.from_user.id
+    uid = str(call.from_user.id)
 
     if uid not in user_balance:
         kb = types.InlineKeyboardMarkup()
@@ -159,14 +180,14 @@ def accept_order(call):
 
         bot.send_message(
             call.message.chat.id,
-            f"⚠️ {call.from_user.first_name}, заказни қабул қилиш учун\nаввал ботга кириб балансингизни тўлдиринг.",
+            "⚠️ Аввал ботга кириб /start босинг",
             reply_markup=kb
         )
         return
 
     if user_balance[uid] < 5000:
         bot.send_message(
-            uid,
+            call.from_user.id,
             f"❌ Баланс етарли эмас\n\n"
             f"Ҳар бир заказ: 5000 сўм\n\n"
             f"💳 Карта:\n{CARD}"
@@ -174,6 +195,8 @@ def accept_order(call):
         return
 
     user_balance[uid] -= 5000
+    save_balances()
+
     data = orders[order_id]
     customer_id = data["customer_id"]
 
@@ -184,7 +207,7 @@ def accept_order(call):
     )
 
     bot.send_message(
-        uid,
+        call.from_user.id,
         f"✅ Заказ қабул қилинди\n\n"
         f"📞 {data['phone']}\n"
         f"📍 Қаердан: {data['from']}\n"
@@ -195,8 +218,7 @@ def accept_order(call):
 
     bot.send_message(
         customer_id,
-        f"✅ Заказингизни {call.from_user.first_name} қабул қилди.\n\n"
-        f"🚕 Ҳайдовчи йўлга чиқди."
+        f"✅ Заказингизни {call.from_user.first_name} қабул қилди.\n\n🚕 Ҳайдовчи йўлга чиқди."
     )
 
     del orders[order_id]
@@ -210,14 +232,13 @@ def pay(message):
 
     try:
         _, uid, amount = message.text.split()
-
-        uid = int(uid)
         amount = int(amount)
 
         user_balance[uid] = user_balance.get(uid, 0) + amount
+        save_balances()
 
         bot.send_message(
-            uid,
+            int(uid),
             f"✅ Баланс {amount} сўмга тўлдирилди\n"
             f"💰 Янги баланс: {user_balance[uid]} сўм"
         )
