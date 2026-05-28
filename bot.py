@@ -179,7 +179,7 @@ def process_order(message):
         return
 
     if data["step"] == "phone":
-    data["phone"] = message.text
+        data["phone"] = message.text
 
         order_id = len(orders) + 1
         orders[order_id] = {"customer_id": uid, **data}
@@ -193,8 +193,6 @@ def process_order(message):
 📍 Қаердан: {data['from']}
 📍 Қаерга: {data['to']}
 👥 Жой: {data['seat']}
-⏰ {data['time']}
-📝 {data['comment']}
 
 🔒 Телефон қабул қилгандан кейин чиқади
 """
