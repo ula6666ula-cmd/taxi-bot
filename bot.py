@@ -196,11 +196,10 @@ def process_order(message):
         kb.add(types.InlineKeyboardButton("✅ Қабул қилиш", callback_data=f"accept_{order_id}"))
 
         txt = (
-            f"🚕 Янги заказ\n\n"
+            f"🚕 Янги заказ кабул килинг\n\n"
             f"📍 Қаердан: {data['from']}\n"
             f"📍 Қаерга: {data['to']}\n"
             f"👥 Жой: {data['seat']}\n"
-            f"📞 {data['phone']}"
         )
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
