@@ -50,8 +50,7 @@ def balance(message):
 
     bot.send_message(
         message.chat.id,
-        f"💰 Баланс: {bal} сўм\n\n"
-        f"💳 Карта:\n{CARD}",
+        f"💰 Баланс: {bal} сўм\n\n💳 Карта:\n{CARD}",
         reply_markup=kb
     )
 
@@ -87,7 +86,7 @@ def receive_check(message):
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
-    bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
+    bot.send_message(message.chat.id, "📍 Қаердан йўлга чиқасиз?")
 
 
 # ================= ORDER PROCESS =================
@@ -104,7 +103,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
+        bot.send_message(uid, "👥 Нечта жой банд қиласиз?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -115,7 +114,11 @@ def process_order(message):
         data["phone"] = message.text
 
         order_id = len(orders) + 1
-        orders[order_id] = data.copy()
+
+        orders[order_id] = {
+            "customer_id": uid,
+            **data.copy()
+        }
 
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton(
@@ -156,8 +159,7 @@ def accept_order(call):
 
         bot.send_message(
             call.message.chat.id,
-            f"⚠️ {call.from_user.first_name}, заказни қабул қилиш учун\n"
-            f"аввал ботга кириб балансингизни тўлдиринг.",
+            f"⚠️ {call.from_user.first_name}, заказни қабул қилиш учун\nаввал ботга кириб балансингизни тўлдиринг.",
             reply_markup=kb
         )
         return
@@ -173,9 +175,10 @@ def accept_order(call):
 
     user_balance[uid] -= 5000
     data = orders[order_id]
+    customer_id = data["customer_id"]
 
     bot.edit_message_text(
-        f"✅ @{call.from_user.username or call.from_user.first_name} қабул қилди",
+        f"✅ @{call.from_user.username or call.from_user.first_name} заказни қабул қилди",
         call.message.chat.id,
         call.message.message_id
     )
@@ -188,6 +191,12 @@ def accept_order(call):
         f"📍 Қаерга: {data['to']}\n"
         f"👥 Жой: {data['seat']}\n\n"
         f"💰 Қолдиқ: {user_balance[uid]} сўм"
+    )
+
+    bot.send_message(
+        customer_id,
+        f"✅ Заказингизни {call.from_user.first_name} қабул қилди.\n\n"
+        f"🚕 Ҳайдовчи йўлга чиқди."
     )
 
     del orders[order_id]
