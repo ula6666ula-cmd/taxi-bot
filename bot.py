@@ -15,16 +15,17 @@ BALANCE_FILE = "balances.json"
 DRIVERS_FILE = "drivers.json"
 
 
-# ================= LOAD/SAVE =================
 def load_json(file):
     if os.path.exists(file):
         with open(file, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
+
 def save_json(file, data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f)
+
 
 user_balance = load_json(BALANCE_FILE)
 drivers = load_json(DRIVERS_FILE)
@@ -48,16 +49,25 @@ def menu():
 def start(message):
     uid = str(message.chat.id)
 
+    register_step.pop(message.chat.id, None)
+    step_data.pop(message.chat.id, None)
+
     if uid not in user_balance:
         user_balance[uid] = 0
         save_json(BALANCE_FILE, user_balance)
 
-    bot.send_message(message.chat.id, "Ассалому алайкум 👋", reply_markup=menu())
+    bot.send_message(
+        message.chat.id,
+        "Ассалому алайкум 👋",
+        reply_markup=menu()
+    )
 
 
 # ================= DRIVER REGISTER =================
 @bot.message_handler(func=lambda m: m.text == "🚖 Хайдовчи бўлиш")
 def become_driver(message):
+    step_data.pop(message.chat.id, None)
+
     uid = str(message.chat.id)
 
     if uid in drivers:
@@ -98,11 +108,17 @@ def register_driver(message):
 # ================= BALANCE =================
 @bot.message_handler(func=lambda m: m.text == "💰 Хайдовчи Баланси")
 def balance(message):
+    register_step.pop(message.chat.id, None)
+    step_data.pop(message.chat.id, None)
+
     uid = str(message.chat.id)
     bal = user_balance.get(uid, 0)
 
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton("💳 Баланс тўлдириш", callback_data="send_check"))
+    kb.add(types.InlineKeyboardButton(
+        "💳 Баланс тўлдириш",
+        callback_data="send_check"
+    ))
 
     bot.send_message(
         message.chat.id,
@@ -136,6 +152,8 @@ def receive_check(message):
 # ================= ORDER START =================
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
+    register_step.pop(message.chat.id, None)
+
     step_data[message.chat.id] = {"step": "from"}
     bot.send_message(message.chat.id, "📍 Қаердан йўлга чиқасиз?")
 
@@ -168,7 +186,10 @@ def process_order(message):
         orders[order_id] = {"customer_id": uid, **data.copy()}
 
         kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton("✅ Қабул қилиш", callback_data=f"accept_{order_id}"))
+        kb.add(types.InlineKeyboardButton(
+            "✅ Қабул қилиш",
+            callback_data=f"accept_{order_id}"
+        ))
 
         txt = (
             f"🚕 Янги заказ\n\n"
