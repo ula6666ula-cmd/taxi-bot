@@ -11,7 +11,6 @@ bot = telebot.TeleBot(TOKEN)
 user_balance = {}
 orders = {}
 step_data = {}
-payment_wait = {}
 
 # ================= MENU =================
 def menu():
@@ -32,33 +31,31 @@ def start(message):
     )
 
 
-# ================= MENU BUTTONS =================
+# ================= BALANCE =================
+@bot.message_handler(func=lambda m: m.text == "💰 Баланс")
+def balance(message):
+    bal = user_balance.get(message.chat.id, 0)
+
+    bot.send_message(
+        message.chat.id,
+        f"💰 Баланс: {bal} сўм\n\n"
+        f"💳 Тўлдириш учун:\n{CARD}\n\n"
+        f"Чекни админга юборинг."
+    )
+
+
+# ================= ORDER START =================
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
     bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
 
 
-@bot.message_handler(func=lambda m: m.text == "💰 Баланс")
-def balance(message):
-    bal = user_balance.get(message.chat.id, 0)
-    bot.send_message(
-        message.chat.id,
-        f"💰 Баланс: {bal} сўм\n\n"
-        f"Тўлдириш учун:\n{CARD}\n\n"
-        f"Чекни админга юборинг."
-    )
-
-
-# ================= ORDER STEPS =================
+# ================= ORDER PROCESS =================
 @bot.message_handler(func=lambda m: m.chat.id in step_data)
 def process_order(message):
     uid = message.chat.id
     data = step_data[uid]
-
-    if message.text == "/start":
-        start(message)
-        return
 
     if data["step"] == "from":
         data["from"] = message.text
@@ -68,7 +65,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
+        bot.send_message(uid, "👥 Нечта жой?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -113,16 +110,16 @@ def accept_order(call):
     balance = user_balance.get(uid, 0)
 
     if balance < 5000:
-    bot.answer_callback_query(call.id, "Баланс етарли эмас")
+        bot.answer_callback_query(call.id, "Баланс етарли эмас")
 
-    bot.send_message(
-        uid,
-        f"❌ Баланс етарли эмас\n\n"
-        f"Заказ қабул қилиш учун камида 5000 сўм керак.\n\n"
-        f"💳 Баланс тўлдириш учун:\n{CARD}\n\n"
-        f"Чекни админга юборинг."
-    )
-    return
+        bot.send_message(
+            uid,
+            f"❌ Баланс етарли эмас\n\n"
+            f"Заказ қабул қилиш учун камида 5000 сўм керак.\n\n"
+            f"💳 Баланс тўлдириш учун:\n{CARD}\n\n"
+            f"Чекни админга юборинг."
+        )
+        return
 
     user_balance[uid] -= 5000
     data = orders[order_id]
@@ -140,7 +137,7 @@ def accept_order(call):
         f"📍 Қаердан: {data['from']}\n"
         f"📍 Қаерга: {data['to']}\n"
         f"👥 Жой: {data['seat']}\n\n"
-        f"💰 Қолдиқ баланс: {user_balance[uid]}"
+        f"💰 Қолдиқ баланс: {user_balance[uid]} сўм"
     )
 
     del orders[order_id]
@@ -154,6 +151,7 @@ def pay(message):
 
     try:
         _, uid, amount = message.text.split()
+
         uid = int(uid)
         amount = int(amount)
 
@@ -162,10 +160,10 @@ def pay(message):
         bot.send_message(
             uid,
             f"✅ Баланс {amount} сўмга тўлдирилди\n"
-            f"💰 Янги баланс: {user_balance[uid]}"
+            f"💰 Янги баланс: {user_balance[uid]} сўм"
         )
 
-        bot.reply_to(message, "Тасдиқланди")
+        bot.reply_to(message, "✅ Тасдиқланди")
 
     except:
         bot.reply_to(message, "Формат:\n/pay user_id amount")
