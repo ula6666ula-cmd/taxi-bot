@@ -1,11 +1,11 @@
 import telebot
 from telebot import types
 
-TOKEN = "8594048221:AAH347Vcdh0haLmEs48yYWwVCIpftfr9JZo"
+TOKEN = ""
 GROUP_ID = -1003875819316
 ADMIN_ID = 1794307964
 CARD = "9860600409265755"
-BOT_USERNAME = "SAMARAQAND_QARSHI_BOT"
+BOT_LINK = "https://t.me/SAMARAQAND_QARSHI_BOT"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -18,7 +18,7 @@ payment_wait = {}
 # ================= MENU =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("🚕 Заказ бериш", "💰 Баланс")
+    kb.add("🚕 Заказ бериш", "💰 Хайдовчи Баланси")
     return kb
 
 
@@ -32,13 +32,13 @@ def start(message):
 
     bot.send_message(
         message.chat.id,
-        "Ассалому алайкум",
+        "Ассалому алайкум 👋",
         reply_markup=menu()
     )
 
 
 # ================= BALANCE =================
-@bot.message_handler(func=lambda m: m.text == "💰 Баланс")
+@bot.message_handler(func=lambda m: m.text == "💰 Хайдовчи Баланси")
 def balance(message):
     bal = user_balance.get(message.chat.id, 0)
 
@@ -75,7 +75,7 @@ def receive_check(message):
 
     bot.send_message(
         ADMIN_ID,
-        f"Тўлов келди.\n/pay {uid} 5000"
+        f"💳 Янги тўлов\n/pay {uid} 5000"
     )
 
     bot.send_message(uid, "✅ Чек админга юборилди")
@@ -87,7 +87,7 @@ def receive_check(message):
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
-    bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
+    bot.send_message(message.chat.id, "📍 Қаердан?")
 
 
 # ================= ORDER PROCESS =================
@@ -99,12 +99,12 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга борасиз?")
+        bot.send_message(uid, "📍 Қаерга?")
 
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
+        bot.send_message(uid, "👥 Нечта жой?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -139,11 +139,7 @@ def process_order(message):
 # ================= ACCEPT ORDER =================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("accept_"))
 def accept_order(call):
-    try:
-        order_id = int(call.data.split("_")[1])
-    except:
-        bot.answer_callback_query(call.id, "Хато")
-        return
+    order_id = int(call.data.split("_")[1])
 
     if order_id not in orders:
         bot.answer_callback_query(call.id, "Бу эски заказ")
@@ -151,24 +147,26 @@ def accept_order(call):
 
     uid = call.from_user.id
 
-    # Янги хайдовчи ботга кирмаган
     if uid not in user_balance:
-        bot.answer_callback_query(call.id, "Аввал ботга киринг")
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(
+            "🔗 Ботга кириш",
+            url=BOT_LINK
+        ))
 
-        bot.reply_to(
-            call.message,
-            f"❌ {call.from_user.first_name}\n"
-            f"Аввал ботга киринг:\nhttps://t.me/{BOT_USERNAME}\n"
-            f"Сўнг /start босинг."
+        bot.send_message(
+            call.message.chat.id,
+            f"⚠️ {call.from_user.first_name}, заказни қабул қилиш учун\n"
+            f"аввал ботга кириб балансингизни тўлдиринг.",
+            reply_markup=kb
         )
         return
 
     if user_balance[uid] < 5000:
-        bot.answer_callback_query(call.id, "Баланс етарли эмас")
-
         bot.send_message(
             uid,
             f"❌ Баланс етарли эмас\n\n"
+            f"Ҳар бир заказ: 5000 сўм\n\n"
             f"💳 Карта:\n{CARD}"
         )
         return
@@ -202,10 +200,10 @@ def pay(message):
         return
 
     try:
-        parts = message.text.split()
+        _, uid, amount = message.text.split()
 
-        uid = int(parts[1])
-        amount = int(parts[2])
+        uid = int(uid)
+        amount = int(amount)
 
         user_balance[uid] = user_balance.get(uid, 0) + amount
 
@@ -215,16 +213,10 @@ def pay(message):
             f"💰 Янги баланс: {user_balance[uid]} сўм"
         )
 
-        bot.send_message(
-            message.chat.id,
-            "✅ Баланс муваффақиятли тўлдирилди"
-        )
+        bot.reply_to(message, "✅ Тасдиқланди")
 
     except:
-        bot.send_message(
-            message.chat.id,
-            "❌ Формат:\n/pay user_id amount"
-        )
+        bot.reply_to(message, "❌ Формат:\n/pay user_id amount")
 
 
 print("Bot ishga tushdi...")
