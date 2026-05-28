@@ -179,19 +179,7 @@ def process_order(message):
         return
 
     if data["step"] == "phone":
-        data["phone"] = message.text
-        data["step"] = "time"
-        bot.send_message(uid, "⏰ Вақт?")
-        return
-
-    if data["step"] == "time":
-        data["time"] = message.text
-        data["step"] = "comment"
-        bot.send_message(uid, "📝 Изоҳ (йўқ бўлса -)")
-        return
-
-    if data["step"] == "comment":
-        data["comment"] = message.text
+    data["phone"] = message.text
 
         order_id = len(orders) + 1
         orders[order_id] = {"customer_id": uid, **data}
