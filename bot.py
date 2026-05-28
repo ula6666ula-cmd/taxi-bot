@@ -205,9 +205,10 @@ def process_order(message):
 📍 Қаердан: {data['from']}
 📍 Қаерга: {data['to']}
 👥 Жой: {data['seat']}
-📞 {data['phone']}
 ⏰ {data['time']}
 📝 {data['comment']}
+
+🔒 Телефон қабул қилгандан кейин чиқади
 """
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
