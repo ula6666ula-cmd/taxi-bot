@@ -11,12 +11,12 @@ bot = telebot.TeleBot(TOKEN)
 user_balance = {}
 orders = {}
 step_data = {}
+payment_wait = {}
 
 # ================= MENU =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("🚕 Заказ бериш")
-    kb.add("💰 Баланс")
+    kb.add("🚕 Заказ бериш", "💰 Баланс")
     return kb
 
 
@@ -24,6 +24,7 @@ def menu():
 @bot.message_handler(commands=['start'])
 def start(message):
     step_data.pop(message.chat.id, None)
+
     bot.send_message(
         message.chat.id,
         "Ассалому алайкум",
@@ -36,12 +37,52 @@ def start(message):
 def balance(message):
     bal = user_balance.get(message.chat.id, 0)
 
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(
+        "💳 Баланс тўлдириш",
+        callback_data="send_check"
+    ))
+
     bot.send_message(
         message.chat.id,
         f"💰 Баланс: {bal} сўм\n\n"
-        f"💳 Тўлдириш учун:\n{CARD}\n\n"
-        f"Чекни админга юборинг."
+        f"💳 Карта:\n{CARD}\n\n"
+        f"Пастдаги тугмани босиб чек юборинг 👇",
+        reply_markup=kb
     )
+
+
+# ================= SEND CHECK =================
+@bot.callback_query_handler(func=lambda call: call.data == "send_check")
+def send_check(call):
+    payment_wait[call.from_user.id] = True
+    bot.send_message(call.from_user.id, "📸 Чек расмини юборинг")
+
+
+@bot.message_handler(content_types=['photo'])
+def receive_check(message):
+    uid = message.chat.id
+
+    if uid not in payment_wait:
+        return
+
+    bot.forward_message(
+        ADMIN_ID,
+        uid,
+        message.message_id
+    )
+
+    bot.send_message(
+        ADMIN_ID,
+        f"Тўлов келди.\n\n/pay {uid} 5000"
+    )
+
+    bot.send_message(
+        uid,
+        "✅ Чек админга юборилди.\nТасдиқлангандан кейин баланс тўлдирилади."
+    )
+
+    del payment_wait[uid]
 
 
 # ================= ORDER START =================
@@ -60,7 +101,7 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга борасиз?")
+        bot.send_message(uid, "📍 Қаерга борсиз?")
 
     elif data["step"] == "to":
         data["to"] = message.text
@@ -116,8 +157,7 @@ def accept_order(call):
             uid,
             f"❌ Баланс етарли эмас\n\n"
             f"Заказ қабул қилиш учун камида 5000 сўм керак.\n\n"
-            f"💳 Баланс тўлдириш учун:\n{CARD}\n\n"
-            f"Чекни админга юборинг."
+            f"💳 Баланс тўлдириш учун:\n{CARD}"
         )
         return
 
