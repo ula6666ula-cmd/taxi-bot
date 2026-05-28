@@ -5,6 +5,7 @@ TOKEN = "8594048221:AAH347Vcdh0haLmEs48yYWwVCIpftfr9JZo"
 GROUP_ID = -1003875819316
 ADMIN_ID = 1794307964
 CARD = "9860600409265755"
+BOT_USERNAME = "SAMARAQAND_QARSHI_BOT"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -24,6 +25,9 @@ def menu():
 # ================= START =================
 @bot.message_handler(commands=['start'])
 def start(message):
+    if message.chat.id not in user_balance:
+        user_balance[message.chat.id] = 0
+
     step_data.pop(message.chat.id, None)
 
     bot.send_message(
@@ -74,10 +78,7 @@ def receive_check(message):
         f"Тўлов келди.\n/pay {uid} 5000"
     )
 
-    bot.send_message(
-        uid,
-        "✅ Чек админга юборилди"
-    )
+    bot.send_message(uid, "✅ Чек админга юборилди")
 
     del payment_wait[uid]
 
@@ -103,7 +104,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой?")
+        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -149,15 +150,26 @@ def accept_order(call):
         return
 
     uid = call.from_user.id
-    balance = user_balance.get(uid, 0)
 
-    if balance < 5000:
+    # Янги хайдовчи ботга кирмаган
+    if uid not in user_balance:
+        bot.answer_callback_query(call.id, "Аввал ботга киринг")
+
+        bot.reply_to(
+            call.message,
+            f"❌ {call.from_user.first_name}\n"
+            f"Аввал ботга киринг:\nhttps://t.me/{BOT_USERNAME}\n"
+            f"Сўнг /start босинг."
+        )
+        return
+
+    if user_balance[uid] < 5000:
         bot.answer_callback_query(call.id, "Баланс етарли эмас")
 
         bot.send_message(
             uid,
             f"❌ Баланс етарли эмас\n\n"
-            f"Карта:\n{CARD}"
+            f"💳 Карта:\n{CARD}"
         )
         return
 
