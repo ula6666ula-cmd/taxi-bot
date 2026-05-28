@@ -241,7 +241,7 @@ def accept_order(c):
     save_all()
 
     driver = drivers[uid]
-    customer_id = orders[order_id]["customer_id"]
+    customer_id = int(orders[order_id]["customer_id"])
 
     bot.edit_message_text(
         f"✅ {driver['name']} қабул қилди",
