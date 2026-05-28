@@ -87,7 +87,7 @@ def receive_check(message):
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
-    bot.send_message(message.chat.id, "📍 Қаердан?")
+    bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
 
 
 # ================= ORDER PROCESS =================
@@ -99,7 +99,7 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга?")
+        bot.send_message(uid, "📍 Қаерга борасиз?")
 
     elif data["step"] == "to":
         data["to"] = message.text
