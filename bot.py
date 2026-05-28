@@ -104,7 +104,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой?")
+        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
