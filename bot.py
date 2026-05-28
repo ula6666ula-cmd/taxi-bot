@@ -13,6 +13,7 @@ orders = {}
 step_data = {}
 payment_wait = {}
 
+
 # ================= MENU =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -46,8 +47,7 @@ def balance(message):
     bot.send_message(
         message.chat.id,
         f"💰 Баланс: {bal} сўм\n\n"
-        f"💳 Карта:\n{CARD}\n\n"
-        f"Пастдаги тугмани босиб чек юборинг 👇",
+        f"💳 Карта:\n{CARD}",
         reply_markup=kb
     )
 
@@ -59,6 +59,7 @@ def send_check(call):
     bot.send_message(call.from_user.id, "📸 Чек расмини юборинг")
 
 
+# ================= RECEIVE CHECK =================
 @bot.message_handler(content_types=['photo'])
 def receive_check(message):
     uid = message.chat.id
@@ -66,20 +67,16 @@ def receive_check(message):
     if uid not in payment_wait:
         return
 
-    bot.forward_message(
-        ADMIN_ID,
-        uid,
-        message.message_id
-    )
+    bot.forward_message(ADMIN_ID, uid, message.message_id)
 
     bot.send_message(
         ADMIN_ID,
-        f"Тўлов келди.\n\n/pay {uid} 5000"
+        f"Тўлов келди.\n/pay {uid} 5000"
     )
 
     bot.send_message(
         uid,
-        "✅ Чек админга юборилди.\nТасдиқлангандан кейин баланс тўлдирилади."
+        "✅ Чек админга юборилди"
     )
 
     del payment_wait[uid]
@@ -101,7 +98,7 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга борсиз?")
+        bot.send_message(uid, "📍 Қаерга борасиз?")
 
     elif data["step"] == "to":
         data["to"] = message.text
@@ -141,10 +138,14 @@ def process_order(message):
 # ================= ACCEPT ORDER =================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("accept_"))
 def accept_order(call):
-    order_id = int(call.data.split("_")[1])
+    try:
+        order_id = int(call.data.split("_")[1])
+    except:
+        bot.answer_callback_query(call.id, "Хато")
+        return
 
     if order_id not in orders:
-        bot.answer_callback_query(call.id, "Заказ топилмади")
+        bot.answer_callback_query(call.id, "Бу эски заказ")
         return
 
     uid = call.from_user.id
@@ -156,8 +157,7 @@ def accept_order(call):
         bot.send_message(
             uid,
             f"❌ Баланс етарли эмас\n\n"
-            f"Заказ қабул қилиш учун камида 5000 сўм керак.\n\n"
-            f"💳 Баланс тўлдириш учун:\n{CARD}"
+            f"Карта:\n{CARD}"
         )
         return
 
@@ -165,7 +165,7 @@ def accept_order(call):
     data = orders[order_id]
 
     bot.edit_message_text(
-        f"✅ @{call.from_user.username or call.from_user.first_name} заказни қабул қилди",
+        f"✅ @{call.from_user.username or call.from_user.first_name} қабул қилди",
         call.message.chat.id,
         call.message.message_id
     )
@@ -177,7 +177,7 @@ def accept_order(call):
         f"📍 Қаердан: {data['from']}\n"
         f"📍 Қаерга: {data['to']}\n"
         f"👥 Жой: {data['seat']}\n\n"
-        f"💰 Қолдиқ баланс: {user_balance[uid]} сўм"
+        f"💰 Қолдиқ: {user_balance[uid]} сўм"
     )
 
     del orders[order_id]
@@ -186,14 +186,14 @@ def accept_order(call):
 # ================= ADMIN PAYMENT =================
 @bot.message_handler(commands=['pay'])
 def pay(message):
-    if message.chat.id != ADMIN_ID:
+    if message.from_user.id != ADMIN_ID:
         return
 
     try:
-        _, uid, amount = message.text.split()
+        parts = message.text.split()
 
-        uid = int(uid)
-        amount = int(amount)
+        uid = int(parts[1])
+        amount = int(parts[2])
 
         user_balance[uid] = user_balance.get(uid, 0) + amount
 
@@ -203,10 +203,16 @@ def pay(message):
             f"💰 Янги баланс: {user_balance[uid]} сўм"
         )
 
-        bot.reply_to(message, "✅ Тасдиқланди")
+        bot.send_message(
+            message.chat.id,
+            "✅ Баланс муваффақиятли тўлдирилди"
+        )
 
     except:
-        bot.reply_to(message, "Формат:\n/pay user_id amount")
+        bot.send_message(
+            message.chat.id,
+            "❌ Формат:\n/pay user_id amount"
+        )
 
 
 print("Bot ishga tushdi...")
