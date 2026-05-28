@@ -243,10 +243,12 @@ def accept_order(c):
     driver = drivers[uid]
     customer_id = int(orders[order_id]["customer_id"])
 
-    bot.edit_message_text(
-        f"✅ {driver['name']} қабул қилди",
-        c.message.chat.id,
-        c.message.message_id
+    bot.send_message(
+    c.from_user.id,
+    "✅ Заказни қабул қилдингиз\n\n"
+    f"📍 {orders[order_id]['from']} → {orders[order_id]['to']}\n"
+    f"📞 Клиент: {orders[order_id]['phone']}"
+
     )
 
     bot.send_message(
