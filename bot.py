@@ -15,12 +15,14 @@ step_data = {}
 payment_wait = {}
 
 
+# ================= MENU =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add("🚕 Заказ бериш", "💰 Хайдовчи Баланси")
     return kb
 
 
+# ================= START =================
 @bot.message_handler(commands=['start'])
 def start(message):
     if message.chat.id not in user_balance:
@@ -35,6 +37,7 @@ def start(message):
     )
 
 
+# ================= BALANCE =================
 @bot.message_handler(func=lambda m: m.text == "💰 Хайдовчи Баланси")
 def balance(message):
     bal = user_balance.get(message.chat.id, 0)
@@ -52,12 +55,14 @@ def balance(message):
     )
 
 
+# ================= SEND CHECK =================
 @bot.callback_query_handler(func=lambda call: call.data == "send_check")
 def send_check(call):
     payment_wait[call.from_user.id] = True
     bot.send_message(call.from_user.id, "📸 Чек расмини юборинг")
 
 
+# ================= RECEIVE CHECK =================
 @bot.message_handler(content_types=['photo'])
 def receive_check(message):
     uid = message.chat.id
@@ -73,15 +78,18 @@ def receive_check(message):
     )
 
     bot.send_message(uid, "✅ Чек админга юборилди")
+
     del payment_wait[uid]
 
 
+# ================= ORDER START =================
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
     bot.send_message(message.chat.id, "📍 Қаердан йўлга чиқасиз?")
 
 
+# ================= ORDER PROCESS =================
 @bot.message_handler(func=lambda m: m.chat.id in step_data)
 def process_order(message):
     uid = message.chat.id
@@ -131,6 +139,7 @@ def process_order(message):
         del step_data[uid]
 
 
+# ================= ACCEPT ORDER =================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("accept_"))
 def accept_order(call):
     order_id = int(call.data.split("_")[1])
@@ -150,7 +159,7 @@ def accept_order(call):
 
         bot.send_message(
             call.message.chat.id,
-            f"⚠️ {call.from_user.first_name}, аввал ботга кириб балансингизни тўлдиринг.",
+            f"⚠️ {call.from_user.first_name}, заказни қабул қилиш учун\nаввал ботга кириб балансингизни тўлдиринг.",
             reply_markup=kb
         )
         return
@@ -187,14 +196,13 @@ def accept_order(call):
     bot.send_message(
         customer_id,
         f"✅ Заказингизни {call.from_user.first_name} қабул қилди.\n\n"
-        f"👤 Telegram: @{call.from_user.username or 'мавжуд эмас'}\n"
-        f"📞 Телефон: {data['phone']}\n\n"
         f"🚕 Ҳайдовчи йўлга чиқди."
     )
 
     del orders[order_id]
 
 
+# ================= ADMIN PAYMENT =================
 @bot.message_handler(commands=['pay'])
 def pay(message):
     if message.from_user.id != ADMIN_ID:
