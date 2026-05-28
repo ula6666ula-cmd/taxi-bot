@@ -113,8 +113,16 @@ def accept_order(call):
     balance = user_balance.get(uid, 0)
 
     if balance < 5000:
-        bot.answer_callback_query(call.id, "Баланс етарли эмас")
-        return
+    bot.answer_callback_query(call.id, "Баланс етарли эмас")
+
+    bot.send_message(
+        uid,
+        f"❌ Баланс етарли эмас\n\n"
+        f"Заказ қабул қилиш учун камида 5000 сўм керак.\n\n"
+        f"💳 Баланс тўлдириш учун:\n{CARD}\n\n"
+        f"Чекни админга юборинг."
+    )
+    return
 
     user_balance[uid] -= 5000
     data = orders[order_id]
