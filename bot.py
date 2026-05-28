@@ -2,12 +2,12 @@ import telebot
 from telebot import types
 import json
 import os
+import re
 
 TOKEN = "8594048221:AAFYSCHGT1GDPydisGWvzj5Z4jSQeKUs06c"
 GROUP_ID = -1003875819316
 ADMIN_ID = 1794307964
 CARD = "9860600409265755"
-BOT_LINK = "https://t.me/SAMARAQAND_QARSHI_BOT"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -52,11 +52,7 @@ def start(message):
         user_balance[uid] = 0
         save_json(BALANCE_FILE, user_balance)
 
-    bot.send_message(
-        message.chat.id,
-        "Ассалому алайкум 👋",
-        reply_markup=menu()
-    )
+    bot.send_message(message.chat.id, "Ассалому алайкум 👋", reply_markup=menu())
 
 
 # ================= DRIVER REGISTER =================
@@ -68,35 +64,57 @@ def become_driver(message):
         bot.send_message(message.chat.id, "✅ Сиз аллақачон рўйхатдан ўтгансиз")
         return
 
-    register_step[message.chat.id] = "name"
+    register_step[message.chat.id] = {"step": "name"}
     bot.send_message(message.chat.id, "👤 Исмингизни киритинг")
 
 
 @bot.message_handler(func=lambda m: m.chat.id in register_step)
 def register_driver(message):
     uid = str(message.chat.id)
+    step = register_step[message.chat.id]["step"]
 
-    if register_step[message.chat.id] == "name":
-        drivers[uid] = {"name": message.text}
-        register_step[message.chat.id] = "phone"
-        bot.send_message(message.chat.id, "📞 Телефон рақамингизни киритинг")
+    if step == "name":
+        if len(message.text.strip()) < 3:
+            bot.send_message(message.chat.id, "❌ Исм камида 3 ҳарф бўлиши керак")
+            return
+
+        register_step[message.chat.id]["name"] = message.text
+        register_step[message.chat.id]["step"] = "phone"
+        bot.send_message(message.chat.id, "📞 Телефон рақамингизни киритинг\nМасалан: +998901234567")
         return
 
-    elif register_step[message.chat.id] == "phone":
-        drivers[uid]["phone"] = message.text
-        register_step[message.chat.id] = "car"
+    elif step == "phone":
+        phone = message.text.strip()
+
+        if not re.fullmatch(r"\+?\d{12,13}", phone):
+            bot.send_message(
+                message.chat.id,
+                "❌ Телефон рақам нотўғри\nМасалан: +998901234567"
+            )
+            return
+
+        register_step[message.chat.id]["phone"] = phone
+        register_step[message.chat.id]["step"] = "car"
         bot.send_message(message.chat.id, "🚘 Машина маркасини киритинг")
         return
 
-    elif register_step[message.chat.id] == "car":
-        drivers[uid]["car"] = message.text
-        save_json(DRIVERS_FILE, drivers)
+    elif step == "car":
+        if len(message.text.strip()) < 2:
+            bot.send_message(message.chat.id, "❌ Машина номини тўғри киритинг")
+            return
 
+        drivers[uid] = {
+            "name": register_step[message.chat.id]["name"],
+            "phone": register_step[message.chat.id]["phone"],
+            "car": message.text
+        }
+
+        save_json(DRIVERS_FILE, drivers)
         del register_step[message.chat.id]
 
         bot.send_message(
             message.chat.id,
-            "✅ Сиз хайдовчи сифатида рўйхатдан ўтдингиз",
+            "✅ Сиз муваффақиятли хайдовчи бўлдингиз",
             reply_markup=menu()
         )
 
@@ -108,14 +126,11 @@ def balance(message):
     bal = user_balance.get(uid, 0)
 
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(
-        "💳 Баланс тўлдириш",
-        callback_data="send_check"
-    ))
+    kb.add(types.InlineKeyboardButton("💳 Баланс тўлдириш", callback_data="send_check"))
 
     bot.send_message(
         message.chat.id,
-        f"💰 Баланс: {bal} сўм\n\n💳 Карта:\n{CARD}",
+        f"💰 Баланс: {bal} сўм\n\n💳 Карта: {CARD}",
         reply_markup=kb
     )
 
@@ -136,12 +151,7 @@ def receive_check(message):
         return
 
     bot.forward_message(ADMIN_ID, uid, message.message_id)
-
-    bot.send_message(
-        ADMIN_ID,
-        f"💳 Янги тўлов\n/pay {uid} 5000"
-    )
-
+    bot.send_message(ADMIN_ID, f"💳 Янги тўлов\n/pay {uid} 5000")
     bot.send_message(uid, "✅ Чек админга юборилди")
 
     del payment_wait[uid]
@@ -168,7 +178,7 @@ def process_order(message):
     elif data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой?")
+        bot.send_message(uid, "👥 Нечта жой оласиз?")
 
     elif data["step"] == "seat":
         data["seat"] = message.text
@@ -182,17 +192,13 @@ def process_order(message):
         orders[order_id] = {"customer_id": uid, **data.copy()}
 
         kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(
-            "✅ Қабул қилиш",
-            callback_data=f"accept_{order_id}"
-        ))
+        kb.add(types.InlineKeyboardButton("✅ Қабул қилиш", callback_data=f"accept_{order_id}"))
 
-        txt = (
-            f"🚕 Янги заказ\n\n"
-            f"📍 Қаердан: {data['from']}\n"
-            f"📍 Қаерга: {data['to']}\n"
-            f"👥 Жой: {data['seat']}"
-        )
+        txt = f"""🚕 Янги заказ
+
+📍 Қаердан: {data['from']}
+📍 Қаерга: {data['to']}
+👥 Жой: {data['seat']}"""
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
         bot.send_message(uid, "✅ Заказ юборилди", reply_markup=menu())
@@ -211,7 +217,7 @@ def accept_order(call):
     uid = str(call.from_user.id)
 
     if uid not in drivers:
-        bot.send_message(call.from_user.id, "❌ Аввал хайдовчи бўлиб рўйхатдан ўтинг")
+        bot.send_message(call.from_user.id, "❌ Аввал рўйхатдан ўтинг")
         return
 
     if user_balance.get(uid, 0) < 5000:
@@ -232,10 +238,11 @@ def accept_order(call):
 
     bot.send_message(
         customer_id,
-        f"✅ Заказ қабул қилинди\n\n"
-        f"👤 Ҳайдовчи: {drivers[uid]['name']}\n"
-        f"📞 {drivers[uid]['phone']}\n"
-        f"🚘 Машина: {drivers[uid]['car']}"
+        f"""✅ Заказ қабул қилинди
+
+👤 Ҳайдовчи: {drivers[uid]['name']}
+📞 {drivers[uid]['phone']}
+🚘 Машина: {drivers[uid]['car']}"""
     )
 
     del orders[order_id]
@@ -253,11 +260,7 @@ def pay(message):
         user_balance[uid] = user_balance.get(uid, 0) + int(amount)
         save_json(BALANCE_FILE, user_balance)
 
-        bot.send_message(
-            int(uid),
-            f"✅ Баланс {amount} сўмга тўлдирилди"
-        )
-
+        bot.send_message(int(uid), f"✅ Баланс {amount} сўмга тўлдирилди")
         bot.reply_to(message, "✅ Тасдиқланди")
 
     except:
