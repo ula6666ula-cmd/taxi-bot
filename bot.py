@@ -285,5 +285,15 @@ def pay(message):
     except:
         bot.reply_to(message, "❌ /pay user_id amount")
 
-print("Bot ishga tushdi...")
-bot.infinity_polling()
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+while True:
+    try:
+        print("Bot ishga tushdi...")
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+        print(f"Xato: {e}")
+        time.sleep(10)
