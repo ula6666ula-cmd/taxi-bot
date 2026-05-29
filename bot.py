@@ -3,6 +3,8 @@ from telebot import types
 import json
 import os
 import re
+import time
+import logging
 
 TOKEN = "8594048221:AAFlcFhWZpvI3DyKhBZGWmW7jzPgHmkXTmQ"
 GROUP_ID = -1003875819316
@@ -15,7 +17,7 @@ BALANCE_FILE = "balances.json"
 DRIVERS_FILE = "drivers.json"
 STATS_FILE = "stats.json"
 
-# ================= FILES =================
+
 def load_data(file):
     if os.path.exists(file):
         try:
@@ -25,9 +27,11 @@ def load_data(file):
             return {}
     return {}
 
+
 def save_data(file, data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+
 
 user_balance = load_data(BALANCE_FILE)
 drivers = load_data(DRIVERS_FILE)
@@ -38,18 +42,20 @@ step_data = {}
 payment_wait = {}
 register_step = {}
 
+
 def save_all():
     save_data(BALANCE_FILE, user_balance)
     save_data(DRIVERS_FILE, drivers)
     save_data(STATS_FILE, stats)
 
-# ================= MENU =================
+
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add("🚕 Заказ бериш")
     kb.add("🚖 Хайдовчи бўлиш", "💰 Баланс")
     kb.add("📊 Статистика", "❌ Бекор қилиш")
     return kb
+
 
 def cancel(msg):
     uid = msg.chat.id
@@ -58,17 +64,18 @@ def cancel(msg):
     payment_wait.pop(uid, None)
     bot.send_message(uid, "❌ Бекор қилинди", reply_markup=menu())
 
-# ================= START =================
+
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, "Ассалому алайкум 👋", reply_markup=menu())
 
-# ================= CANCEL =================
+
 @bot.message_handler(func=lambda m: m.text == "❌ Бекор қилиш")
 def cancel_handler(message):
     cancel(message)
 
-# ================= DRIVER REGISTER =================
+
+# DRIVER REGISTER
 @bot.message_handler(func=lambda m: m.text == "🚖 Хайдовчи бўлиш")
 def become_driver(message):
     uid = str(message.chat.id)
@@ -79,6 +86,7 @@ def become_driver(message):
 
     register_step[message.chat.id] = {"step": "name"}
     bot.send_message(message.chat.id, "👤 Исмингизни киритинг")
+
 
 @bot.message_handler(func=lambda m: m.chat.id in register_step)
 def register_driver(message):
@@ -93,12 +101,19 @@ def register_driver(message):
 
     if data["step"] == "phone":
         if not re.fullmatch(r"\+998\d{9}", message.text):
-            bot.send_message(message.chat.id, "❌ Нотўғри формат\nМисол: +998901234567")
+            bot.send_message(message.chat.id, "❌ Нотўғри формат")
             return
 
+        data["phone"] = message.text
+        data["step"] = "car"
+        bot.send_message(message.chat.id, "🚘 Машина русуми ва рақами\n\nМисол: Cobalt oq 80A123BC")
+        return
+
+    if data["step"] == "car":
         drivers[uid] = {
             "name": data["name"],
-            "phone": message.text
+            "phone": data["phone"],
+            "car": message.text
         }
 
         user_balance[uid] = 0
@@ -109,7 +124,8 @@ def register_driver(message):
 
         bot.send_message(message.chat.id, "✅ Рўйхатдан ўтдингиз", reply_markup=menu())
 
-# ================= BALANCE =================
+
+# BALANCE
 @bot.message_handler(func=lambda m: m.text == "💰 Баланс")
 def balance(message):
     uid = str(message.chat.id)
@@ -127,11 +143,12 @@ def balance(message):
         reply_markup=kb
     )
 
-# ================= CHECK =================
+
 @bot.callback_query_handler(func=lambda c: c.data == "send_check")
 def send_check(c):
     payment_wait[c.from_user.id] = True
     bot.send_message(c.from_user.id, "📸 Чек расмини юборинг")
+
 
 @bot.message_handler(content_types=['photo'])
 def receive_check(message):
@@ -146,11 +163,13 @@ def receive_check(message):
 
     del payment_wait[uid]
 
-# ================= ORDER =================
+
+# ORDER
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
-    bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
+    bot.send_message(message.chat.id, "📍 Қаердан?")
+
 
 @bot.message_handler(func=lambda m: m.chat.id in step_data)
 def process_order(message):
@@ -160,19 +179,20 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга борасиз?")
+        bot.send_message(uid, "📍 Қаерга?")
         return
 
     if data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой оласиз?")
+        bot.send_message(uid, "👥 Нечта жой?")
         return
 
     if data["step"] == "seat":
         if not message.text.isdigit():
             bot.send_message(uid, "❌ Фақат сон")
             return
+
         data["seat"] = message.text
         data["step"] = "phone"
         bot.send_message(uid, "📞 Телефон?")
@@ -202,7 +222,8 @@ def process_order(message):
 
         del step_data[uid]
 
-# ================= ACCEPT =================
+
+# ACCEPT
 @bot.callback_query_handler(func=lambda c: c.data.startswith("accept_"))
 def accept_order(c):
     order_id = int(c.data.split("_")[1])
@@ -230,21 +251,24 @@ def accept_order(c):
     customer_id = int(orders[order_id]["customer_id"])
 
     bot.send_message(
-    c.from_user.id,
-    "✅ Заказни қабул қилдингиз\n\n"
-    f"📍 {orders[order_id]['from']} → {orders[order_id]['to']}\n"
-    f"📞 Клиент: {orders[order_id]['phone']}"
-
+        c.from_user.id,
+        f"✅ Заказ қабул қилинди\n\n"
+        f"📍 {orders[order_id]['from']} → {orders[order_id]['to']}\n"
+        f"📞 {orders[order_id]['phone']}"
     )
 
     bot.send_message(
         customer_id,
-        f"🚖 Ҳайдовчи:\n👤 {driver['name']}\n📞 {driver['phone']}"
+        f"🚖 Ҳайдовчи:\n"
+        f"👤 {driver['name']}\n"
+        f"🚘 {driver['car']}\n"
+        f"📞 {driver['phone']}"
     )
 
     del orders[order_id]
 
-# ================= STATS =================
+
+# STATS
 @bot.message_handler(func=lambda m: m.text == "📊 Статистика")
 def stat(message):
     uid = str(message.chat.id)
@@ -257,16 +281,11 @@ def stat(message):
 
     bot.send_message(
         message.chat.id,
-        f"""
-📊 Статистика
-
-🚕 Заказ: {s['orders']}
-💸 Сарф: {s['spent']}
-💰 Баланс: {user_balance.get(uid,0)}
-"""
+        f"📊 Статистика\n\n🚕 Заказ: {s['orders']}\n💸 Сарф: {s['spent']}\n💰 Баланс: {user_balance.get(uid,0)}"
     )
 
-# ================= ADMIN PAY =================
+
+# ADMIN PAY
 @bot.message_handler(commands=['pay'])
 def pay(message):
     if message.from_user.id != ADMIN_ID:
@@ -285,8 +304,6 @@ def pay(message):
     except:
         bot.reply_to(message, "❌ /pay user_id amount")
 
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO)
 
