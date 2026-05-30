@@ -164,7 +164,7 @@ def receive_check(message):
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
-    bot.send_message(message.chat.id, "📍 Қаердан?")
+    bot.send_message(message.chat.id, "📍 Қаердан йулга чикасиз?")
 
 
 @bot.message_handler(func=lambda m: m.chat.id in step_data)
@@ -175,13 +175,13 @@ def process_order(message):
     if data["step"] == "from":
         data["from"] = message.text
         data["step"] = "to"
-        bot.send_message(uid, "📍 Қаерга?")
+        bot.send_message(uid, "📍 Қаерга борасиз?")
         return
 
     if data["step"] == "to":
         data["to"] = message.text
         data["step"] = "seat"
-        bot.send_message(uid, "👥 Нечта жой?")
+        bot.send_message(uid, "👥 Нечта жой банд киласиз?")
         return
 
     if data["step"] == "seat":
@@ -208,6 +208,8 @@ def process_order(message):
 
 📍 {data['from']} → {data['to']}
 👥 Жой: {data['seat']}
+
+🔒 Телефон рақами заказни қабул қилган ҳайдовчига кўринади 🔒 
 """
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
