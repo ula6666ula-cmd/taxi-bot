@@ -96,7 +96,7 @@ def register_driver(message):
     if data["step"] == "name":
         data["name"] = message.text
         data["step"] = "phone"
-        bot.send_message(message.chat.id, "📞 +998XXXXXXXXX")
+        bot.send_message(message.chat.id, "📞 +998XXXXXXXXX форматда номер киритинг")
         return
 
     if data["step"] == "phone":
@@ -106,7 +106,7 @@ def register_driver(message):
 
         data["phone"] = message.text
         data["step"] = "car"
-        bot.send_message(message.chat.id, "🚘 Машина русуми ва рақами")
+        bot.send_message(message.chat.id, "🚘 Машина русуми ва рақами\n\nМисол: Cobalt oq 80A123BC")
         return
 
     if data["step"] == "car":
@@ -121,6 +121,7 @@ def register_driver(message):
         save_all()
 
         del register_step[message.chat.id]
+
         bot.send_message(message.chat.id, "✅ Рўйхатдан ўтдингиз", reply_markup=menu())
 
 
@@ -138,7 +139,7 @@ def balance(message):
 
     bot.send_message(
         message.chat.id,
-        f"💰 Баланс: {user_balance.get(uid,0)}\n\n💳 {CARD}",
+        f"💰 Баланс: {user_balance.get(uid,0)} сўм\n\n💳 Карта:\n{CARD}",
         reply_markup=kb
     )
 
@@ -146,7 +147,7 @@ def balance(message):
 @bot.callback_query_handler(func=lambda c: c.data == "send_check")
 def send_check(c):
     payment_wait[c.from_user.id] = True
-    bot.send_message(c.from_user.id, "📸 Чек юборинг")
+    bot.send_message(c.from_user.id, "📸 Чек расмини юборинг")
 
 
 @bot.message_handler(content_types=['photo'])
@@ -158,7 +159,7 @@ def receive_check(message):
 
     bot.forward_message(ADMIN_ID, uid, message.message_id)
     bot.send_message(ADMIN_ID, f"/pay {uid} 5000")
-    bot.send_message(uid, "✅ Юборилди")
+    bot.send_message(uid, "✅ Админга юборилди")
 
     del payment_wait[uid]
 
@@ -209,10 +210,11 @@ def process_order(message):
         txt = f"""
 🚕 Янги заказ
 
-📍 {data['from']} → {data['to']}
+📍 Қаердан: {data['from']}
+📍 Қаерга: {data['to']}
 👥 Жой: {data['seat']}
 
-🔒 Телефон қабул қилгандан кейин
+🔒 Телефон қабул қилгандан кейин чиқади
 """
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
@@ -233,7 +235,7 @@ def accept_order(c):
     uid = str(c.from_user.id)
 
     if uid not in drivers:
-        bot.send_message(c.from_user.id, "❌ Рўйхатдан ўтинг")
+        bot.send_message(c.from_user.id, "❌ Аввал рўйхатдан ўтинг")
         return
 
     if user_balance.get(uid, 0) < 5000:
@@ -250,12 +252,14 @@ def accept_order(c):
 
     bot.send_message(
         c.from_user.id,
-        f"✅ Қабул қилинди\n📞 {orders[order_id]['phone']}"
+        f"✅ Заказ қабул қилинди\n\n"
+        f"📍 {orders[order_id]['from']} → {orders[order_id]['to']}\n"
+        f"📞 {orders[order_id]['phone']}"
     )
 
     bot.send_message(
         customer_id,
-        f"🚖 Ҳайдовчи\n"
+        f"🚖 Ҳайдовчи:\n"
         f"👤 {driver['name']}\n"
         f"🚘 {driver['car']}\n"
         f"📞 {driver['phone']}"
@@ -270,72 +274,35 @@ def stat(message):
     uid = str(message.chat.id)
 
     if uid not in stats:
+        bot.send_message(message.chat.id, "❌ Йўқ")
         return
 
     s = stats[uid]
 
     bot.send_message(
         message.chat.id,
-        f"🚕 {s['orders']}\n💸 {s['spent']}\n💰 {user_balance.get(uid,0)}"
+        f"📊 Статистика\n\n🚕 Заказ: {s['orders']}\n💸 Сарф: {s['spent']}\n💰 Баланс: {user_balance.get(uid,0)}"
     )
 
 
-# ADMIN
+# ADMIN PAY
 @bot.message_handler(commands=['pay'])
 def pay(message):
     if message.from_user.id != ADMIN_ID:
         return
 
-    _, uid, amount = message.text.split()
-    amount = int(amount)
-
-    user_balance[uid] = user_balance.get(uid, 0) + amount
-    save_all()
-    bot.send_message(int(uid), f"✅ {amount} тушди")
-
-
-@bot.message_handler(commands=['drivers'])
-def drivers_list(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    txt = "👥 Ҳайдовчилар\n\n"
-
-    for uid, d in drivers.items():
-        txt += f"{d['name']} | {d['car']} | {user_balance.get(uid,0)}\n"
-
-    bot.send_message(message.chat.id, txt)
-
-
-@bot.message_handler(commands=['delete'])
-def delete_driver(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-
     try:
-        _, uid = message.text.split()
+        _, uid, amount = message.text.split()
+        amount = int(amount)
 
-        del drivers[uid]
-        user_balance.pop(uid, None)
-        stats.pop(uid, None)
-
+        user_balance[uid] = user_balance.get(uid, 0) + amount
         save_all()
-        bot.reply_to(message, "✅ Ўчирилди")
+
+        bot.send_message(int(uid), f"✅ {amount} сўм тушди")
+        bot.reply_to(message, "✅")
+
     except:
-        bot.reply_to(message, "❌ /delete user_id")
-
-
-@bot.message_handler(commands=['allstats'])
-def all_stats(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    total_orders = sum(s["orders"] for s in stats.values())
-
-    bot.send_message(
-        message.chat.id,
-        f"👥 {len(drivers)}\n🚕 {total_orders}"
-    )
+        bot.reply_to(message, "❌ /pay user_id amount")
 
 
 logging.basicConfig(level=logging.INFO)
@@ -345,5 +312,5 @@ while True:
         print("Bot ishga tushdi...")
         bot.infinity_polling(timeout=60, long_polling_timeout=60)
     except Exception as e:
-        print(e)
+        print(f"Xato: {e}")
         time.sleep(10)
