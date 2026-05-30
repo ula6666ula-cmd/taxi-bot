@@ -75,7 +75,6 @@ def cancel_handler(message):
     cancel(message)
 
 
-# DRIVER REGISTER
 @bot.message_handler(func=lambda m: m.text == "🚖 Хайдовчи бўлиш")
 def become_driver(message):
     uid = str(message.chat.id)
@@ -124,7 +123,6 @@ def register_driver(message):
         bot.send_message(message.chat.id, "✅ Рўйхатдан ўтдингиз", reply_markup=menu())
 
 
-# BALANCE
 @bot.message_handler(func=lambda m: m.text == "💰 Баланс")
 def balance(message):
     uid = str(message.chat.id)
@@ -163,7 +161,6 @@ def receive_check(message):
     del payment_wait[uid]
 
 
-# ORDER
 @bot.message_handler(func=lambda m: m.text == "🚕 Заказ бериш")
 def order_start(message):
     step_data[message.chat.id] = {"step": "from"}
@@ -211,8 +208,6 @@ def process_order(message):
 
 📍 {data['from']} → {data['to']}
 👥 Жой: {data['seat']}
-
-🔒 Телефон қабул қилгандан кейин
 """
 
         bot.send_message(GROUP_ID, txt, reply_markup=kb)
@@ -221,7 +216,6 @@ def process_order(message):
         del step_data[uid]
 
 
-# ACCEPT
 @bot.callback_query_handler(func=lambda c: c.data.startswith("accept_"))
 def accept_order(c):
     order_id = int(c.data.split("_")[1])
@@ -261,10 +255,16 @@ def accept_order(c):
         f"📞 {driver['phone']}"
     )
 
+    admin_text = "💰 Ҳайдовчилар баланси\n\n"
+
+    for driver_id, d in drivers.items():
+        admin_text += f"{d['name']} | {d['car']} | {user_balance.get(driver_id,0)}\n"
+
+    bot.send_message(ADMIN_ID, admin_text)
+
     del orders[order_id]
 
 
-# STATS
 @bot.message_handler(func=lambda m: m.text == "📊 Статистика")
 def stat(message):
     uid = str(message.chat.id)
@@ -280,7 +280,6 @@ def stat(message):
     )
 
 
-# ADMIN
 @bot.message_handler(commands=['pay'])
 def pay(message):
     if message.from_user.id != ADMIN_ID:
@@ -305,24 +304,6 @@ def drivers_list(message):
         txt += f"{d['name']} | {d['car']} | {user_balance.get(uid,0)}\n"
 
     bot.send_message(message.chat.id, txt)
-
-
-@bot.message_handler(commands=['delete'])
-def delete_driver(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    try:
-        _, uid = message.text.split()
-
-        del drivers[uid]
-        user_balance.pop(uid, None)
-        stats.pop(uid, None)
-
-        save_all()
-        bot.reply_to(message, "✅ Ўчирилди")
-    except:
-        bot.reply_to(message, "❌ /delete user_id")
 
 
 @bot.message_handler(commands=['allstats'])
